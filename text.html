@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Water Text Effect</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        .text {
+            position: absolute;
+            font-family: 'Comic Sans MS', cursive;
+            text-transform: lowercase;
+            color: #00f;
+            mix-blend-mode: lighten;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Create text canvas
+        const textCanvas = document.createElement('canvas');
+        const ctx = textCanvas.getContext('2d');
+        textCanvas.width = 1024;
+        textCanvas.height = 256;
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 80px "Comic Sans MS", cursive';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('isso é uma live', textCanvas.width/2, textCanvas.height/2);
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(textCanvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+
+        // Shader material
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                resolution: { value: new THREE.Vector2() },
+                textureSampler: { value: texture }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform sampler2D textureSampler;
+                varying vec2 vUv;
+                
+                void main() {
+                    vec2 uv = vUv;
+                    uv.x += sin(uv.y * 10.0 + time * 2.0) * 0.02;
+                    uv.y += cos(uv.x * 8.0 + time * 1.5) * 0.02;
+                    uv.x += sin(time + uv.y * 5.0) * 0.01;
+                    uv.y += cos(time + uv.x * 6.0) * 0.01;
+                    
+                    vec4 color = texture2D(textureSampler, uv);
+                    color.rgb *= 0.8 + 0.2 * sin(time * 2.0 + uv.x * 10.0);
+                    gl_FragColor = color;
+                }
+            `
+        });
+
+        // Create plane mesh
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            material.uniforms.time.value += 0.02;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            material.uniforms.resolution.value.set(
+                window.innerWidth,
+                window.innerHeight
+            );
+        });
+    </script>
+</body>
+</html>
